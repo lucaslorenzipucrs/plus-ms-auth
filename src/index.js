@@ -1,3 +1,5 @@
+const authMiddleware = require("./middlewares/authMiddleware");
+const roleMiddleware = require("./middlewares/roleMiddleware");
 require("dotenv").config();
 const express = require("express");
 const jwt = require("jsonwebtoken");
@@ -29,7 +31,7 @@ app.post("/auth/login", async (req, res) => {
   if (!user || !(await bcrypt.compare(password, user.password_hash)))
     return res.status(401).json({ error: "Credenciais inválidas" });
 
-  const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, {
+  const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_SECRET, {
     expiresIn: "15m",
   });
   const refresh = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "7d" });
@@ -58,17 +60,32 @@ app.post("/auth/logout", (_req, res) => {
 });
 
 // GET /auth/me
-app.get("/auth/me", (req, res) => {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith("Bearer "))
-    return res.status(401).json({ error: "Token não fornecido" });
+// app.get("/auth/me", (req, res) => {
+//   const auth = req.headers.authorization;
+//   if (!auth?.startsWith("Bearer "))
+//     return res.status(401).json({ error: "Token não fornecido" });
 
-  try {
-    const payload = jwt.verify(auth.slice(7), JWT_SECRET);
-    res.json({ id: payload.sub, email: payload.email });
-  } catch {
-    res.status(401).json({ error: "Token inválido ou expirado" });
-  }
+//   try {
+//     const payload = jwt.verify(auth.slice(7), JWT_SECRET);
+//     res.json({ id: payload.sub, email: payload.email });
+//   } catch {
+//     res.status(401).json({ error: "Token inválido ou expirado" });
+//   }
+// });
+app.get("/auth/me", authMiddleware, (req, res) => {
+  res.json({
+    id: req.user.sub,
+    email: req.user.email,
+    role: req.user.role
+  });
 });
+
+// GET /admin
+app.get("/admin", authMiddleware, roleMiddleware("ADMIN"), (req, res) => {
+    res.json({
+      message: "Área admin liberada"
+    });
+  }
+);
 
 app.listen(PORT, () => console.log(`plus-ms-auth rodando na porta ${PORT}`));
