@@ -211,4 +211,10 @@ app.get("/admin", authMiddleware, roleMiddleware("ADMIN"), (req, res) => {
   }
 );
 
-app.listen(PORT, () => console.log(`plus-ms-auth rodando na porta ${PORT}`));
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`plus-ms-auth rodando na porta ${PORT}`);
+  });
+}
+
+module.exports = { app, pool };
