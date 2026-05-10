@@ -1,3 +1,5 @@
+const swaggerUi = require("swagger-ui-express");
+const swaggerJsdoc = require("swagger-jsdoc");
 const authMiddleware = require("./middlewares/authMiddleware");
 const roleMiddleware = require("./middlewares/roleMiddleware");
 require("dotenv").config();
@@ -8,6 +10,50 @@ const { Pool } = require("pg");
 
 const app = express();
 app.use(express.json());
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+
+    info: {
+      title: "Plus MS Auth API",
+      version: "1.0.0",
+      description: "API de autenticação do sistema Plus"
+    },
+
+    servers: [
+      {
+        url: "http://localhost:3001"
+      }
+    ],
+
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT"
+        }
+      }
+    },
+
+    security: [
+      {
+        bearerAuth: []
+      }
+    ]
+  },
+
+  apis: [__filename]
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
+// Get /docs for swagger
+app.use(
+  "/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec)
+);
 
 const pool = new Pool({
   host: process.env.DB_HOST,
@@ -20,6 +66,30 @@ const pool = new Pool({
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const PORT = process.env.PORT || 3001;
 
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Realiza login do usuário
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login realizado com sucesso
+ *       401:
+ *         description: Credenciais inválidas
+ */
 // POST /auth/login
 app.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
@@ -39,6 +109,28 @@ app.post("/auth/login", async (req, res) => {
   res.json({ token, refresh });
 });
 
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Gera novo access token usando refresh token
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refresh:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Novo token gerado
+ *       401:
+ *         description: Refresh token inválido
+ */
 // POST /auth/refresh
 app.post("/auth/refresh", (req, res) => {
   const { refresh } = req.body;
@@ -53,25 +145,39 @@ app.post("/auth/refresh", (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Realiza logout do usuário
+ *     tags:
+ *       - Auth
+ *     responses:
+ *       204:
+ *         description: Logout realizado com sucesso
+ */
 // POST /auth/logout
 app.post("/auth/logout", (_req, res) => {
   // Stateless: em produção invalidar o refresh token no banco
   res.status(204).send();
 });
 
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Retorna dados do usuário autenticado
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dados do usuário autenticado
+ *       401:
+ *         description: Token inválido ou expirado
+ */
 // GET /auth/me
-// app.get("/auth/me", (req, res) => {
-//   const auth = req.headers.authorization;
-//   if (!auth?.startsWith("Bearer "))
-//     return res.status(401).json({ error: "Token não fornecido" });
-
-//   try {
-//     const payload = jwt.verify(auth.slice(7), JWT_SECRET);
-//     res.json({ id: payload.sub, email: payload.email });
-//   } catch {
-//     res.status(401).json({ error: "Token inválido ou expirado" });
-//   }
-// });
 app.get("/auth/me", authMiddleware, (req, res) => {
   res.json({
     id: req.user.sub,
@@ -80,6 +186,21 @@ app.get("/auth/me", authMiddleware, (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /admin:
+ *   get:
+ *     summary: Área restrita para administradores
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Acesso permitido
+ *       403:
+ *         description: Acesso negado
+ */
 // GET /admin
 app.get("/admin", authMiddleware, roleMiddleware("ADMIN"), (req, res) => {
     res.json({
