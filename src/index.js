@@ -1,3 +1,4 @@
+const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const authMiddleware = require("./middlewares/authMiddleware");
@@ -9,6 +10,7 @@ const bcrypt = require("bcryptjs");
 const { Pool } = require("pg");
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 const swaggerOptions = {
   definition: {
