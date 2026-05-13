@@ -14,13 +14,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: plus
+          POSTGRES_PASSWORD: plus_secret
           POSTGRES_DB: plus_auth
         ports:
           - 5432:5432
@@ -33,12 +32,12 @@ jobs:
     env:
       DB_HOST: localhost
       DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_USER: plus
+      DB_PASSWORD: plus_secret
       DB_NAME: plus_auth
       JWT_SECRET: test-secret
       NODE_ENV: test
-
+      
     steps:
       - uses: actions/checkout@v4
 
